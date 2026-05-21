@@ -1,64 +1,137 @@
 import streamlit as st
 
-st.set_page_config(page_title="Rooms", page_icon="🌐")
+st.set_page_config(page_title="Rooms", page_icon="R", layout="wide")
 
-# estado das salas (simples)
+# -------------------------
+# ESTADO
+# -------------------------
+if "user" not in st.session_state:
+    st.session_state.user = None
+
 if "room" not in st.session_state:
     st.session_state.room = None
 
-if "messages" not in st.session_state:
-    st.session_state.messages = {
+if "rooms" not in st.session_state:
+    st.session_state.rooms = {
         "madrugada": [],
-        "musica": [],
-        "devs": [],
-        "aleatorio": []
+        "music": [],
+        "devs": []
     }
 
-ROOMS = {
-    "madrugada": "🌙 madrugada",
-    "musica": "🎧 manda música",
-    "devs": "💻 devs online",
-    "aleatorio": "😂 aleatório"
+if "online" not in st.session_state:
+    st.session_state.online = set()
+
+# -------------------------
+# CSS FUTURISTA
+# -------------------------
+st.markdown("""
+<style>
+body {
+    background-color: #0b0f1a;
+    color: #e6e6e6;
 }
 
-# -------------------------
-# TELA 1: SALAS
-# -------------------------
-if st.session_state.room is None:
+.stApp {
+    background-color: #0b0f1a;
+}
 
-    st.title("🌐 Rooms")
-    st.write("Entre em uma sala e converse")
+h1, h2, h3 {
+    color: #ffffff;
+    font-weight: 500;
+}
 
-    for room_id, room_name in ROOMS.items():
-        if st.button(room_name):
-            st.session_state.room = room_id
+div[data-testid="stSidebar"] {
+    background-color: #0f1424;
+    border-right: 1px solid #1f2a44;
+}
+
+button {
+    background-color: #121a2b !important;
+    color: #d6d6d6 !important;
+    border: 1px solid #1f2a44 !important;
+    border-radius: 8px !important;
+}
+
+button:hover {
+    border: 1px solid #00d4ff !important;
+    color: #00d4ff !important;
+}
+
+input {
+    background-color: #0f1424 !important;
+    color: white !important;
+    border: 1px solid #1f2a44 !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------------
-# TELA 2: CHAT DA SALA
+# LOGIN
+# -------------------------
+if st.session_state.user is None:
+    st.title("Rooms")
+
+    user = st.text_input("Username")
+
+    if st.button("Enter"):
+        if user.strip():
+            st.session_state.user = user
+            st.session_state.online.add(user)
+            st.rerun()
+
+# -------------------------
+# APP
 # -------------------------
 else:
-    room_id = st.session_state.room
+    user = st.session_state.user
 
-    st.title(ROOMS[room_id])
+    # SIDEBAR
+    st.sidebar.title("Rooms")
 
-    if st.button("← voltar"):
-        st.session_state.room = None
+    new_room = st.sidebar.text_input("Create room")
 
-    st.divider()
+    if st.sidebar.button("Create"):
+        if new_room and new_room not in st.session_state.rooms:
+            st.session_state.rooms[new_room] = []
 
-    # mostrar mensagens
-    for msg in st.session_state.messages[room_id]:
-        st.write(f"**{msg['user']}**: {msg['text']}")
+    st.sidebar.divider()
 
-    st.divider()
+    for room in st.session_state.rooms.keys():
+        if st.sidebar.button(room):
+            st.session_state.room = room
 
-    # input de mensagem
-    user_msg = st.text_input("Digite uma mensagem")
+    st.sidebar.divider()
+    st.sidebar.write("Online")
+    st.sidebar.write(list(st.session_state.online))
 
-    if st.button("enviar"):
-        if user_msg.strip():
-            st.session_state.messages[room_id].append({
-                "user": "Você",
-                "text": user_msg
-            })
+    # -------------------------
+    # ROOM VIEW
+    # -------------------------
+    if st.session_state.room is None:
+        st.title("Select a room")
+
+    else:
+        room = st.session_state.room
+
+        st.title(room)
+
+        st.divider()
+
+        for msg in st.session_state.rooms[room]:
+            st.markdown(f"**{msg['user']}**  \n{msg['text']}")
+
+        st.divider()
+
+        msg = st.text_input("Message")
+
+        if st.button("Send"):
+            if msg.strip():
+                st.session_state.rooms[room].append({
+                    "user": user,
+                    "text": msg
+                })
+                st.rerun()
+
+        if st.button("Leave"):
+            st.session_state.room = None
             st.rerun()

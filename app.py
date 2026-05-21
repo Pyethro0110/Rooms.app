@@ -21,11 +21,8 @@ if "messages" not in st.session_state:
 # -------------------------
 # CORES POR USUÁRIO
 # -------------------------
-def user_color(name):
-    colors = [
-        "#00d4ff", "#ff4d6d", "#7c4dff",
-        "#00ffa3", "#ffb703", "#4cc9f0"
-    ]
+def color(name):
+    colors = ["#00d4ff", "#ff4d6d", "#7c4dff", "#00ffa3", "#ffb703"]
     h = int(hashlib.md5(name.encode()).hexdigest(), 16)
     return colors[h % len(colors)]
 
@@ -50,28 +47,30 @@ else:
 
     st.sidebar.title("Rooms")
 
-    # criar sala
+    # -------------------------
+    # CRIAR SALA
+    # -------------------------
     room_name = st.sidebar.text_input("Room name")
     room_type = st.sidebar.selectbox("Type", ["Public", "Private"])
     password = st.sidebar.text_input("Password (private only)", type="password")
-    invite_user = st.sidebar.text_input("Invite user (optional)")
+    invite = st.sidebar.text_input("Invite user (optional)")
 
-    if st.sidebar.button("Create room"):
+    if st.sidebar.button("Create"):
         if room_name:
             st.session_state.rooms[room_name] = {
                 "type": room_type,
                 "password": password if room_type == "Private" else None,
-                "allowed": {user, invite_user} if invite_user else {user}
+                "members": {user, invite} if invite else {user}
             }
             st.session_state.messages[room_name] = []
 
     st.sidebar.divider()
 
-    # listar salas
+    # -------------------------
+    # LISTA DE SALAS
+    # -------------------------
     for room, data in st.session_state.rooms.items():
-        label = f"{room} ({data['type']})"
-
-        if st.sidebar.button(label):
+        if st.sidebar.button(room):
             st.session_state.room = room
 
     # -------------------------
@@ -86,28 +85,32 @@ else:
 
         st.title(room)
 
-        # verificação privada
+        # -------------------------
+        # SEGURANÇA PRIVADA
+        # -------------------------
         if data["type"] == "Private":
-            pass_input = st.text_input("Password")
-
-            if pass_input != data["password"]:
-                st.warning("Wrong password")
+            if user not in data["members"]:
+                st.error("You are not invited")
                 st.stop()
 
-            if user not in data["allowed"]:
-                st.warning("You are not invited")
+            pw = st.text_input("Password", type="password")
+
+            if pw != data["password"]:
+                st.warning("Wrong password")
                 st.stop()
 
         st.divider()
 
-        # mensagens
+        # -------------------------
+        # MENSAGENS
+        # -------------------------
         for msg in st.session_state.messages[room]:
-            color = user_color(msg["user"])
+            c = color(msg["user"])
 
             st.markdown(
                 f"""
-                <div style="margin-bottom:10px;">
-                    <span style="color:{color}; font-weight:600;">
+                <div style="margin-bottom:8px;">
+                    <span style="color:{c}; font-weight:600;">
                         {msg['user']}
                     </span>
                     <div style="color:#cfcfcf; margin-left:6px;">
@@ -120,7 +123,9 @@ else:
 
         st.divider()
 
-        # enviar mensagem
+        # -------------------------
+        # ENVIAR
+        # -------------------------
         text = st.text_input("Message")
 
         if st.button("Send"):

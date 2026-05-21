@@ -54,7 +54,7 @@ else:
     rooms = supabase.table("rooms").select("*").execute().data
 
     for r in rooms:
-        if st.sidebar.button(r["name"]):
+        if st.sidebar.button(r["name"], key=r["id"]):
             st.session_state.room = r
 
     # -------------------------

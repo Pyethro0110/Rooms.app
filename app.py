@@ -42,14 +42,14 @@ if st.session_state.user is None:
 user = st.session_state.user
 
 # -------------------------
-# COR POR USUÁRIO
+# COR USUÁRIO
 # -------------------------
 def get_color(name):
     colors = ["#FF4B4B", "#4B7BFF", "#4BFF88", "#FFB84B", "#B84BFF"]
     return colors[int(hashlib.md5(name.encode()).hexdigest(), 16) % len(colors)]
 
 # -------------------------
-# PRESENÇA ONLINE
+# PRESENÇA
 # -------------------------
 def update_presence(room_id, user_name):
     supabase.table("presence").upsert({
@@ -82,23 +82,16 @@ def get_presence(room_id):
     return total, online
 
 # -------------------------
-# SIDEBAR - CRIAR SALA
+# CRIAR SALA (SIMPLES)
 # -------------------------
 st.sidebar.title("Salas")
 
 room_name = st.sidebar.text_input("Nova sala")
-room_type = st.sidebar.selectbox("Tipo", ["public", "private"])
-room_password = None
-
-if room_type == "private":
-    room_password = st.sidebar.text_input("Senha", type="password")
 
 if st.sidebar.button("Criar sala"):
     if room_name:
         supabase.table("rooms").insert({
             "name": room_name,
-            "type": room_type,
-            "password": room_password,
             "created_by": user
         }).execute()
 
@@ -113,36 +106,9 @@ if st.session_state.room is None:
     rooms = supabase.table("rooms").select("*").execute().data
 
     for r in rooms:
-
-        # SALA PÚBLICA
-        if r["type"] == "public":
-            if st.button(f"Entrar em {r['name']}", key=str(r["id"])):
-                st.session_state.room = r
-                st.rerun()
-
-        # SALA PRIVADA
-        else:
-            if st.button(f"🔒 Entrar em {r['name']}", key=str(r["id"])):
-                st.session_state["pending_room"] = r
-                st.rerun()
-
-    # -------------------------
-    # SENHA PRIVADA
-    # -------------------------
-    if "pending_room" in st.session_state:
-        room = st.session_state["pending_room"]
-
-        st.subheader(f"Sala privada: {room['name']}")
-
-        password = st.text_input("Digite a senha", type="password")
-
-        if st.button("Entrar na sala"):
-            if password == room["password"]:
-                st.session_state.room = room
-                del st.session_state["pending_room"]
-                st.rerun()
-            else:
-                st.error("Senha incorreta")
+        if st.button(f"Entrar em {r['name']}", key=str(r["id"])):
+            st.session_state.room = r
+            st.rerun()
 
     st.stop()
 
@@ -176,7 +142,7 @@ for m in messages:
     )
 
 # -------------------------
-# ENVIAR MENSAGEM
+# ENVIAR
 # -------------------------
 msg = st.text_input("Mensagem")
 

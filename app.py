@@ -4,10 +4,10 @@ from supabase import create_client
 # -------------------------
 # SUPABASE
 # -------------------------
-SUPABASE_URL = "COLE_SUA_URL"
-SUPABASE_KEY = "COLE_SUA_ANON_KEY"
+SUPABASE_URL = "https://zfipvfodgngjfuukmeym.supabase.co/rest/v1/"
+SUPABASE_KEY = "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK"
 
-supabase = create_client(https://zfipvfodgngjfuukmeym.supabase.co/rest/v1/, sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK)
+supabase = create_client("https://zfipvfodgngjfuukmeym.supabase.co/rest/v1/", "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK")
 
 st.set_page_config(page_title="Rooms", layout="wide")
 

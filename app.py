@@ -1,13 +1,11 @@
 import streamlit as st
 from supabase import create_client
 
-# -------------------------
-# SUPABASE
-# -------------------------
-SUPABASE_URL = "https://zfipvfodgngjfuukmeym.supabase.co/rest/v1/"
+SUPABASE_URL = "https://zfipvfodgngjfuukmeym.supabase.co"
+
 SUPABASE_KEY = "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK"
 
-supabase = create_client("https://zfipvfodgngjfuukmeym.supabase.co/rest/v1/", "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK")
+supabase = create_client"(https://zfipvfodgngjfuukmeym.supabase.co", "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK")
 
 st.set_page_config(page_title="Rooms", layout="wide")
 

@@ -8,6 +8,9 @@ SUPABASE_KEY = "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK"
 supabase = create_client("https://zfipvfodgngjfuukmeym.supabase.co", "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK")
 
 st.set_page_config(page_title="Rooms", layout="wide")
+from streamlit_autorefresh import st_autorefresh
+
+st_autorefresh(interval=3000, key="reload")
 
 # -------------------------
 # LOGIN SIMPLES

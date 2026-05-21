@@ -1,19 +1,26 @@
 import streamlit as st
 from supabase import create_client
-
-SUPABASE_URL = "https://zfipvfodgngjfuukmeym.supabase.co"
-
-SUPABASE_KEY = "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK"
-
-supabase = create_client("https://zfipvfodgngjfuukmeym.supabase.co", "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK")
-
-st.set_page_config(page_title="Rooms", layout="wide")
 from streamlit_autorefresh import st_autorefresh
-
-st_autorefresh(interval=3000, key="reload")
+import hashlib
+from datetime import datetime, timedelta
 
 # -------------------------
-# LOGIN SIMPLES
+# SUPABASE
+# -------------------------
+SUPABASE_URL = "https://zfipvfodgngjfuukmeym.supabase.co"
+SUPABASE_KEY = "sb_publishable_VVMaElC6qJpstOsTnCr63Q_WPcK5TAK"
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# -------------------------
+# CONFIG
+# -------------------------
+st.set_page_config(page_title="Salas", layout="wide")
+
+st_autorefresh(interval=5000, key="reload")
+
+# -------------------------
+# LOGIN PERSISTENTE
 # -------------------------
 if "user" not in st.session_state:
     st.session_state.user = None
@@ -22,77 +29,139 @@ if "room" not in st.session_state:
     st.session_state.room = None
 
 if st.session_state.user is None:
-    st.title("Rooms")
+    st.title("Entrar nas Salas")
 
-    user = st.text_input("Username")
+    user = st.text_input("Seu nome")
 
-    if st.button("Enter"):
+    if st.button("Entrar"):
         if user:
             st.session_state.user = user
             st.rerun()
 
+    st.stop()
+
+user = st.session_state.user
+
 # -------------------------
-# APP
+# COR POR USUÁRIO
 # -------------------------
-else:
-    user = st.session_state.user
+def get_color(name):
+    colors = ["#FF4B4B", "#4B7BFF", "#4BFF88", "#FFB84B", "#B84BFF"]
+    index = int(hashlib.md5(name.encode()).hexdigest(), 16)
+    return colors[index % len(colors)]
 
-    st.sidebar.title("Rooms")
+# -------------------------
+# PRESENÇA (ONLINE)
+# -------------------------
+def update_presence(room_id, user_name):
+    supabase.table("presence").upsert({
+        "room_id": room_id,
+        "user_name": user_name,
+        "last_seen": datetime.utcnow().isoformat()
+    }).execute()
 
-    # criar sala
-    room_name = st.sidebar.text_input("New room")
+def get_presence(room_id):
+    data = supabase.table("presence") \
+        .select("*") \
+        .eq("room_id", room_id) \
+        .execute().data
 
-    if st.sidebar.button("Create"):
-        if room_name:
-            supabase.table("rooms").insert({
-                "name": room_name,
-                "type": "public",
-                "password": None,
-                "created_by": user
-            }).execute()
+    now = datetime.utcnow()
+    online_limit = now - timedelta(seconds=10)
 
-    st.sidebar.divider()
+    online = 0
 
-    # listar salas (CATÁLOGO REAL)
+    for u in data:
+        if u.get("last_seen"):
+            try:
+                last = datetime.fromisoformat(u["last_seen"].replace("Z", ""))
+                if last > online_limit:
+                    online += 1
+            except:
+                pass
+
+    return len(data), online
+
+# -------------------------
+# SIDEBAR
+# -------------------------
+st.sidebar.title("Salas")
+
+room_name = st.sidebar.text_input("Nova sala")
+
+if st.sidebar.button("Criar sala"):
+    if room_name:
+        supabase.table("rooms").insert({
+            "name": room_name,
+            "type": "public",
+            "password": None,
+            "created_by": user
+        }).execute()
+
+st.sidebar.divider()
+
+# -------------------------
+# LISTA DE SALAS
+# -------------------------
+if st.session_state.room is None:
+    st.title("Salas disponíveis")
+
     rooms = supabase.table("rooms").select("*").execute().data
 
     for r in rooms:
-        if st.sidebar.button(r["name"], key=r["id"]):
+        if st.button(f"Entrar em {r['name']}", key=r["id"]):
             st.session_state.room = r
-
-    # -------------------------
-    # SALA
-    # -------------------------
-    if st.session_state.room is None:
-        st.title("Select a room")
-
-    else:
-        room = st.session_state.room
-
-        st.title(room["name"])
-
-        # mensagens
-        messages = supabase.table("messages") \
-            .select("*") \
-            .eq("room_id", room["id"]) \
-            .order("created_at") \
-            .execute().data
-
-        for m in messages:
-            st.write(f"**{m['user_name']}**: {m['text']}")
-
-        msg = st.text_input("Message")
-
-        if st.button("Send"):
-            if msg:
-                supabase.table("messages").insert({
-                    "room_id": room["id"],
-                    "user_name": user,
-                    "text": msg
-                }).execute()
-
-                st.rerun()
-
-        if st.button("Leave"):
-            st.session_state.room = None
             st.rerun()
+
+    st.stop()
+
+# -------------------------
+# SALA
+# -------------------------
+room = st.session_state.room
+
+update_presence(room["id"], user)
+
+total_users, online_users = get_presence(room["id"])
+
+st.title(room["name"])
+st.caption(f"👥 {total_users} usuários • 🟢 {online_users} online")
+
+# -------------------------
+# MENSAGENS
+# -------------------------
+messages = supabase.table("messages") \
+    .select("*") \
+    .eq("room_id", room["id"]) \
+    .order("created_at") \
+    .execute().data
+
+for m in messages:
+    color = get_color(m["user_name"])
+
+    st.markdown(
+        f"<span style='color:{color}; font-weight:bold'>{m['user_name']}</span>: {m['text']}",
+        unsafe_allow_html=True
+    )
+
+# -------------------------
+# ENVIAR MENSAGEM
+# -------------------------
+msg = st.text_input("Mensagem")
+
+if st.button("Enviar"):
+    if msg:
+        supabase.table("messages").insert({
+            "room_id": room["id"],
+            "user_name": user,
+            "text": msg
+        }).execute()
+
+        st.rerun()
+
+# -------------------------
+# SAIR
+# -------------------------
+if st.button("Sair da sala"):
+    st.session_state.room = None
+    st.rerun()

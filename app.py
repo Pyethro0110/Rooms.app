@@ -3,7 +3,6 @@ from supabase import create_client
 from streamlit_autorefresh import st_autorefresh
 import hashlib
 from datetime import datetime, timedelta
-import uuid
 
 # -------------------------
 # SUPABASE
@@ -20,7 +19,7 @@ st.set_page_config(page_title="Salas", layout="wide")
 st_autorefresh(interval=5000, key="reload")
 
 # -------------------------
-# LOGIN
+# LOGIN SIMPLES
 # -------------------------
 if "user" not in st.session_state:
     st.session_state.user = None
@@ -29,7 +28,7 @@ if "room" not in st.session_state:
     st.session_state.room = None
 
 if st.session_state.user is None:
-    st.title("Entrar")
+    st.title("Entrar no Chat")
 
     user = st.text_input("Seu nome")
 
@@ -43,14 +42,14 @@ if st.session_state.user is None:
 user = st.session_state.user
 
 # -------------------------
-# COR DO USUÁRIO
+# COR POR USUÁRIO
 # -------------------------
 def get_color(name):
     colors = ["#FF4B4B", "#4B7BFF", "#4BFF88", "#FFB84B", "#B84BFF"]
     return colors[int(hashlib.md5(name.encode()).hexdigest(), 16) % len(colors)]
 
 # -------------------------
-# PRESENÇA
+# PRESENÇA ONLINE
 # -------------------------
 def update_presence(room_id, user_name):
     supabase.table("presence").upsert({
@@ -83,20 +82,6 @@ def get_presence(room_id):
     return total, online
 
 # -------------------------
-# ENTRADA POR LINK (NOVO)
-# -------------------------
-room_code_param = st.query_params.get("room")
-
-if room_code_param and st.session_state.room is None:
-    room = supabase.table("rooms") \
-        .select("*") \
-        .eq("code", room_code_param) \
-        .execute().data
-
-    if room:
-        st.session_state.room = room[0]
-
-# -------------------------
 # SIDEBAR - CRIAR SALA
 # -------------------------
 st.sidebar.title("Salas")
@@ -110,13 +95,10 @@ if room_type == "private":
 
 if st.sidebar.button("Criar sala"):
     if room_name:
-        room_code = str(uuid.uuid4())[:8]
-
         supabase.table("rooms").insert({
             "name": room_name,
             "type": room_type,
             "password": room_password,
-            "code": room_code,
             "created_by": user
         }).execute()
 
@@ -131,9 +113,36 @@ if st.session_state.room is None:
     rooms = supabase.table("rooms").select("*").execute().data
 
     for r in rooms:
-        if st.button(f"Entrar em {r['name']}", key=str(r["id"])):
-            st.session_state.room = r
-            st.rerun()
+
+        # SALA PÚBLICA
+        if r["type"] == "public":
+            if st.button(f"Entrar em {r['name']}", key=str(r["id"])):
+                st.session_state.room = r
+                st.rerun()
+
+        # SALA PRIVADA
+        else:
+            if st.button(f"🔒 Entrar em {r['name']}", key=str(r["id"])):
+                st.session_state["pending_room"] = r
+                st.rerun()
+
+    # -------------------------
+    # SENHA PRIVADA
+    # -------------------------
+    if "pending_room" in st.session_state:
+        room = st.session_state["pending_room"]
+
+        st.subheader(f"Sala privada: {room['name']}")
+
+        password = st.text_input("Digite a senha", type="password")
+
+        if st.button("Entrar na sala"):
+            if password == room["password"]:
+                st.session_state.room = room
+                del st.session_state["pending_room"]
+                st.rerun()
+            else:
+                st.error("Senha incorreta")
 
     st.stop()
 
@@ -148,9 +157,6 @@ total, online = get_presence(room["id"])
 
 st.title(room["name"])
 st.caption(f"👥 {total} usuários • 🟢 {online} online")
-
-# LINK DE CONVITE (NOVO)
-st.code(f"?room={room['code']}")
 
 # -------------------------
 # MENSAGENS
@@ -181,6 +187,7 @@ if st.button("Enviar"):
             "user_name": user,
             "text": msg
         }).execute()
+
         st.rerun()
 
 # -------------------------

@@ -121,6 +121,12 @@ if st.session_state.room is None:
 room = st.session_state.room
 
 update_presence(room["id"], user)
+def update_presence(room_id, user_name):
+    supabase.table("presence").upsert({
+        "room_id": room_id,
+        "user_name": user_name,
+        "last_seen": datetime.utcnow().isoformat()
+    }, on_conflict="room_id,user_name").execute()
 
 total_users, online_users = get_presence(room["id"])
 

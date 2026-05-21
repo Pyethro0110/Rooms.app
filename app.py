@@ -1,6 +1,7 @@
 import streamlit as st
+import hashlib
 
-st.set_page_config(page_title="Rooms", page_icon="R", layout="wide")
+st.set_page_config(page_title="Rooms", layout="wide")
 
 # -------------------------
 # ESTADO
@@ -12,58 +13,21 @@ if "room" not in st.session_state:
     st.session_state.room = None
 
 if "rooms" not in st.session_state:
-    st.session_state.rooms = {
-        "madrugada": [],
-        "music": [],
-        "devs": []
-    }
+    st.session_state.rooms = {}
 
-if "online" not in st.session_state:
-    st.session_state.online = set()
+if "messages" not in st.session_state:
+    st.session_state.messages = {}
 
 # -------------------------
-# CSS FUTURISTA
+# CORES POR USUÁRIO
 # -------------------------
-st.markdown("""
-<style>
-body {
-    background-color: #0b0f1a;
-    color: #e6e6e6;
-}
-
-.stApp {
-    background-color: #0b0f1a;
-}
-
-h1, h2, h3 {
-    color: #ffffff;
-    font-weight: 500;
-}
-
-div[data-testid="stSidebar"] {
-    background-color: #0f1424;
-    border-right: 1px solid #1f2a44;
-}
-
-button {
-    background-color: #121a2b !important;
-    color: #d6d6d6 !important;
-    border: 1px solid #1f2a44 !important;
-    border-radius: 8px !important;
-}
-
-button:hover {
-    border: 1px solid #00d4ff !important;
-    color: #00d4ff !important;
-}
-
-input {
-    background-color: #0f1424 !important;
-    color: white !important;
-    border: 1px solid #1f2a44 !important;
-}
-</style>
-""", unsafe_allow_html=True)
+def user_color(name):
+    colors = [
+        "#00d4ff", "#ff4d6d", "#7c4dff",
+        "#00ffa3", "#ffb703", "#4cc9f0"
+    ]
+    h = int(hashlib.md5(name.encode()).hexdigest(), 16)
+    return colors[h % len(colors)]
 
 # -------------------------
 # LOGIN
@@ -76,7 +40,6 @@ if st.session_state.user is None:
     if st.button("Enter"):
         if user.strip():
             st.session_state.user = user
-            st.session_state.online.add(user)
             st.rerun()
 
 # -------------------------
@@ -85,50 +48,86 @@ if st.session_state.user is None:
 else:
     user = st.session_state.user
 
-    # SIDEBAR
     st.sidebar.title("Rooms")
 
-    new_room = st.sidebar.text_input("Create room")
+    # criar sala
+    room_name = st.sidebar.text_input("Room name")
+    room_type = st.sidebar.selectbox("Type", ["Public", "Private"])
+    password = st.sidebar.text_input("Password (private only)", type="password")
+    invite_user = st.sidebar.text_input("Invite user (optional)")
 
-    if st.sidebar.button("Create"):
-        if new_room and new_room not in st.session_state.rooms:
-            st.session_state.rooms[new_room] = []
+    if st.sidebar.button("Create room"):
+        if room_name:
+            st.session_state.rooms[room_name] = {
+                "type": room_type,
+                "password": password if room_type == "Private" else None,
+                "allowed": {user, invite_user} if invite_user else {user}
+            }
+            st.session_state.messages[room_name] = []
 
     st.sidebar.divider()
 
-    for room in st.session_state.rooms.keys():
-        if st.sidebar.button(room):
+    # listar salas
+    for room, data in st.session_state.rooms.items():
+        label = f"{room} ({data['type']})"
+
+        if st.sidebar.button(label):
             st.session_state.room = room
 
-    st.sidebar.divider()
-    st.sidebar.write("Online")
-    st.sidebar.write(list(st.session_state.online))
-
     # -------------------------
-    # ROOM VIEW
+    # SALA
     # -------------------------
     if st.session_state.room is None:
         st.title("Select a room")
 
     else:
         room = st.session_state.room
+        data = st.session_state.rooms[room]
 
         st.title(room)
 
+        # verificação privada
+        if data["type"] == "Private":
+            pass_input = st.text_input("Password")
+
+            if pass_input != data["password"]:
+                st.warning("Wrong password")
+                st.stop()
+
+            if user not in data["allowed"]:
+                st.warning("You are not invited")
+                st.stop()
+
         st.divider()
 
-        for msg in st.session_state.rooms[room]:
-            st.markdown(f"**{msg['user']}**  \n{msg['text']}")
+        # mensagens
+        for msg in st.session_state.messages[room]:
+            color = user_color(msg["user"])
+
+            st.markdown(
+                f"""
+                <div style="margin-bottom:10px;">
+                    <span style="color:{color}; font-weight:600;">
+                        {msg['user']}
+                    </span>
+                    <div style="color:#cfcfcf; margin-left:6px;">
+                        {msg['text']}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
         st.divider()
 
-        msg = st.text_input("Message")
+        # enviar mensagem
+        text = st.text_input("Message")
 
         if st.button("Send"):
-            if msg.strip():
-                st.session_state.rooms[room].append({
+            if text.strip():
+                st.session_state.messages[room].append({
                     "user": user,
-                    "text": msg
+                    "text": text
                 })
                 st.rerun()
 

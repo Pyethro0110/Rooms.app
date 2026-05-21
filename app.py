@@ -15,7 +15,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 # -------------------------
 # CONFIG
 # -------------------------
-st.set_page_config(page_title="Salas", layout="wide")
+st.set_page_config(page_title="Rooms", layout="wide")
 
 st_autorefresh(interval=5000, key="reload")
 
